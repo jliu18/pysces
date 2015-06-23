@@ -19,8 +19,11 @@ class BoundVortices(object):
         q = self._body.get_points(body_frame=True)
         dq = np.diff(q, axis=0)
         self._numpanels = dq.shape[0]
-        self._normals = np.transpose(np.array([dq[:,1], -dq[:,0]]) /
-                                     np.linalg.norm(dq, axis=1))
+        self._lengths = np.linalg.norm(dq, axis=1) 
+        self._normals = np.transpose(np.array([dq[:,1], -dq[:,0]]) / self._lengths)
+        self._tangents = -np.transpose(np.array([dq[:,0], dq[:,1]]) / self._lengths)
+        self._angles = np.arctan2(dq[:,1], dq[:,0]) #check the sign on this
+        
         q25 = q[:-1] + 0.25 * dq
         q75 = q[:-1] + 0.75 * dq
         # vortex positions at 1/4 chord of panel
@@ -185,6 +188,22 @@ class BoundVortices(object):
         # return self._normals[0,:], self._normals[1,:]
         return self._normals
 
+    @property
+    def tangents(self):
+        return self._tangents
+        
+    @property 
+    def angles(self):
+        return self._angles #the angle of each panel 
+        
+    @property
+    def lengths(self):
+        return self._lengths
+    
+    @property
+    def num_panels(self):
+        return self._numpanels
+        
 
 class BoundSourceDoublets(object):
     def __init__(self, body):

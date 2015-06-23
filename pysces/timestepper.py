@@ -1,18 +1,23 @@
 """A module to easily set up and manage a simulation"""
 import numpy as np
 from .vortex import Vortices
+import force
+import copy
 
 __all__ = ['ExplicitEuler', 'RungeKutta2', 'RungeKutta4']
 
 class Timestepper(object):
     """Base class for timesteppers for unsteady boundary element simulation"""
 
-    def __init__(self, dt, Uinfty=(1,0), bound=None, wake=None):
+    def __init__(self, dt, Uinfty=(1,0), bound=None, wake=None, need_force=False):
         """Initialize a simulation"""
         self._dt = dt
         self._Uinfty = np.array(Uinfty)
         self._bound = bound
         self._has_body = (bound is not None)
+        self._need_force = need_force
+        if need_force:
+            self._force = np.array([0,0], dtype=np.float64)
         self.initialize(wake)
 
     def initialize(self, wake=None):
@@ -38,8 +43,20 @@ class Timestepper(object):
         if not dt:
             dt = self._dt
         x = self._wake.positions
-        self._advance(x, dt)    # defer to subclass
-
+        #calculate force on body
+#        if self._need_force:
+#            vel = self._wake_velocity() #dont compute twice?
+#            f = force.compute_force_wake(self.wake, vel)
+#            self._force = np.vstack((self._force, f)) 
+        v1 = copy.deepcopy(self.bound.vortices) #need deepcopy?
+        #move the wake
+        self._wake_advance(x, dt)    # defer to subclass
+        v2 = self.bound.vortices
+        f = force.compute_force_bound(v1, v2)
+        self._force = np.vstack((self._force, f)) 
+        #move the body   
+        #self._body_advance(force, dt)   #also defer to subclass? Can we use things like Runge Kutta on this?
+        
     @property
     def time(self):
         """Current simulation time"""
@@ -59,7 +76,16 @@ class Timestepper(object):
     def dt(self):
         """Timestep for the simulation"""
         return self._dt
-
+    
+    @property
+    def force(self):
+        """Force on the body"""
+        if self._need_force:
+            return self._force 
+        else:
+            print 'No force calculated'
+        
+    
     def _wake_velocity(self, pos=None, dt=0):
         """Compute the induced velocity at each of the wake vortices
 
@@ -135,14 +161,19 @@ class Timestepper(object):
 class ExplicitEuler(Timestepper):
     """Timestepper using the explicit Euler method"""
 
-    def _advance(self, x, dt):
+    def _wake_advance(self, x, dt):
         vel = self._wake_velocity()
         self._update_flow(x + vel * dt, dt)
+        
+#    def _body_advance(self, force, dt):
+#        pass
+        #add stuff here
+        #see _update_flow(), also has body motion update stuff
 
 class RungeKutta2(Timestepper):
     """Timestepper using 2nd-order Runge Kutta"""
 
-    def _advance(self, x, dt):
+    def _wake_advance(self, x, dt):
         k1 = self._wake_velocity()
         k2 = self._wake_velocity(x + dt/2 * k1, dt/2)
         self._update_flow(x + dt * k2, dt)
@@ -150,7 +181,7 @@ class RungeKutta2(Timestepper):
 class RungeKutta4(Timestepper):
     """Timestepper using 4th-order Runge Kutta"""
 
-    def _advance(self, x, dt):
+    def _wake_advance(self, x, dt):
         k1 = self._wake_velocity()
         k2 = self._wake_velocity(x + dt/2 * k1, dt/2)
         k3 = self._wake_velocity(x + dt/2 * k2, dt/2)

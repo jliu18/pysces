@@ -159,3 +159,19 @@ class Heaving(TransformedBody):
         x = self._displacement * np.sin(theta)
         xdot = self._displacement * self._frequency * np.cos(theta)
         self.set_motion(RigidMotion(0, x, 0, xdot))
+        
+#class Xmotion(TransformedBody):
+#    """Translates an existing body in the x-direction only based on the forces acting on it
+#    """
+#    def __init__(self, body, mass, velocity, force, dt):
+#        super(Xmotion, self).__init__(body) #what does this line do?
+#        self._mass = mass #mass of fish and added mass
+#        self._velocity = np.array(velocity) #initial velocity
+#        self._force = np.array(force)
+#        self._dt = dt
+#        
+#    def _update(self):
+#        xdot = np.array([self._force[0] / self._mass * self.dt + self._velocity, 0])
+#        #FIX, need to transform?
+#        x = np.array([0.5 * self._force[0] / self._mass * self.dt * self.dt + self._velocity * self.dt, 0]) 
+#        self.set_motion(RigidMotion(0, x, 0, xdot))

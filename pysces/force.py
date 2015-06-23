@@ -1,45 +1,67 @@
 import numpy as np
-#from .timestepper import Timestepper
 
-__all__ = ['PressureMethod', 'ImpulseMethod']
-
-class PressureMethod(object):
-    """Finds the forces on the body by integrating the pressure"""
-
-
-class ImpulseMethod(object):
-    """Finds the force on the body by using vortex impulse"""
-        
-#    def __init__(self):
-#        self._force = np.array([0,0,0], dtype=np.float64)
-#    
+#__all__ = ['PressureMethod', 'ImpulseMethod']
+#
+#class Force(object):
+#    def __init__(self, force=None):
+#        self._force = np.array(force) 
+#        
 #    @property
 #    def force(self):
-#        """The force on the body"""
+#        """Force on the body"""
 #        return self._force
 #        
-#    def _compute_impulse(self, wake):
-#        impulse = np.array([0,0,0], dtype=np.float64)
-#        if wake is None:
-#            return impulse
+#    @force.setter
+#    def force(self, value):
+#        self._force = np.array(value, dtype=np.float64)
+#        
+#    def append(self, force):
+#        force = np.array(force, ndmin=2)
+#        if self._force is None:
+#            self._force = force
 #        else:
-#            k = np.array([0, 0, 1], dtype=np.float64)
-#            impulse = np.array([0,0,0], dtype=np.float64)
-#            for i in range(wake.__len__()):
-#                impulse += wake.strengths[i] * np.cross(wake.positions[i], k) #check indexing here
-#            return impulse
-#    
-#    #computes force by using the change in impulse           
-#    def compute_force(self, old_wake, new_wake):
-#        impulse1 = self._compute_impulse(old_wake)
-#        impulse2 = self._compute_impulse(new_wake)
-#        self._force = impulse2 - impulse1 #need minus sign?
-        
-    def compute_force(self, wake):
-        dImpulse = np.array([0,0,0], dtype=np.float64) #change in impulse with each time step
-        k = np.array([0,0,1], dtype=np.float64)
-        #need to calculate the induced velocity, or access it if its stored
-        #induced_velocity = 
-        for i in range(wake.__len__()):
-            dImpulse += wake.strengths[i] * np.cross(induced_velocity[i], k)
-        return -dImpulse #the force is the negative change in impulse
+#            self._force = np.vstack((self._force, force))
+#            
+#    def compute_force(self): #do i need this?
+#        pass #defer to subclasses
+#
+#class PressureMethod(Force):
+#calculates the total potential due to the vortices
+def _vortex_potential(vortex):
+   theta = np.arctan2(vortex.positions[:,1], vortex.positions[:,0])
+   phi = vortex.strengths * theta / (2 * np.pi)
+   return np.sum(phi)
+
+def compute_force_pressure(bound, vortex_old, vortex_new, pref=0):
+    """Finds the forces on the body by integrating the pressure"""
+    #is this right? This is just a constant then for all panels 
+    dPhi = _vortex_potential(vortex_new) - _vortex_potential(vortex_old) 
+    p = - dPhi + pref
+    return p
+    
+#class ImpulseMethod(Force):
+       
+def compute_force_wake(wake, induced_velocity):
+    """Finds the force on the body by using vortex impulse of the wake"""
+    #force is the negative change in impulse
+    #change in impulse is the sum of gamma_i * (induced_velocity_i cross k)
+    #take the cross of the induced velocity with the unit vector in the z direction   
+    #q = (v, -u) 
+    q = np.transpose(np.array([induced_velocity[:,1], -induced_velocity[:,0]]))
+    #multiply by the vortex strength
+    dI = q * wake.strengths[:,np.newaxis]
+    dI = np.sum(dI, axis=0)
+    return -dI
+    
+def compute_force_bound(vortex_old, vortex_new): #bound vortices
+    """Finds the force on the body by using vortex impulse of the bound vortices"""
+    dgam = vortex_new.strengths - vortex_old.strengths
+    dpos = vortex_new.positions - vortex_old.positions #positions need to be in inertial frame?
+    a = np.transpose(np.array([vortex_new.positions[:,1], -vortex_new.positions[:,0]]))
+    a = a * dgam[:,np.newaxis]
+    b = np.transpose(np.array([dpos[:,1], -dpos[:,0]]))
+    b = b * vortex_new.strengths[:,np.newaxis]
+    dI = a + b
+    dI = np.sum(dI, axis=0)
+    return -dI
+    
