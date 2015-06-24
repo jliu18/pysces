@@ -49,10 +49,12 @@ class Timestepper(object):
 #            f = force.compute_force_wake(self.wake, vel)
 #            self._force = np.vstack((self._force, f)) 
         v1 = copy.deepcopy(self.bound.vortices) #need deepcopy?
-        #move the wake
+#        #move the wake
         self._wake_advance(x, dt)    # defer to subclass
         v2 = self.bound.vortices
-        f = force.compute_force_bound(v1, v2)
+        #f = force.compute_force_bound(v1, v2)
+        f = force.compute_force_pressure(self._bound, v1, v2, self._wake)
+        #f = force.compute_force_flat_plate(self._bound)
         self._force = np.vstack((self._force, f)) 
         #move the body   
         #self._body_advance(force, dt)   #also defer to subclass? Can we use things like Runge Kutta on this?

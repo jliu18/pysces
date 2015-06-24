@@ -193,6 +193,10 @@ class BoundVortices(object):
         return self._tangents
         
     @property 
+    def tangent_velocities(self):
+        return self._tan_vel
+        
+    @property 
     def angles(self):
         return self._angles #the angle of each panel 
         

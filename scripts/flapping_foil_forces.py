@@ -37,8 +37,8 @@ plt.legend(loc='upper left');
 plt.grid(True)
 plt.show()
 
-#average_thrust = np.average(flow.force[:,0])
-#print average_thrust
-#
-#average_lift = np.average(flow.force[:,1])
-#print average_lift
+average_thrust = np.average(flow.force[:,0])
+print average_thrust
+
+average_lift = np.average(flow.force[:,1])
+print average_lift

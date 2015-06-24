@@ -26,18 +26,70 @@ import numpy as np
 #        pass #defer to subclasses
 #
 #class PressureMethod(Force):
+
+#fix this/check, also consider Uinfty other than (1,0)
+#computes the tangential velocity at each collocation point
+#figure out which way tangents should point
+def _compute_tan_velocity(bound, Uinfty=(1,0), wake=None):
+    # get collocation points and normals
+    motion = bound._body.get_motion()
+    if motion:
+        xcoll_inertial = motion.map_position(bound.collocation_pts)
+        tangents_inertial = motion.map_vector(bound.tangents)
+    else:
+        xcoll_inertial = bound.collocation_pts
+        tangents_inertial = bound.tangents
+    # velocity induced by wake
+    if wake:
+        vel = wake.induced_velocity(xcoll_inertial)
+    else:
+        vel = np.zeros((bound.num_panels, 2))
+    # assume body is not deforming: only motion is translation/rotation
+    if motion:
+        vel -= motion.map_velocity(bound.collocation_pts)
+    vel += np.array(Uinfty)
+    # compute v . t
+    return np.sum(vel * tangents_inertial, 1)
+
+#gets the magnitude kinematic velocity at each collocation point (only for rigid bodies)
+def _compute_kin_velocity(bound):
+    motion = bound._body.get_motion()
+    if motion:
+        v = motion.map_velocity(bound.collocation_pts)
+    else:
+        v = np.array([0,0])
+    return np.linalg.norm(v, axis=1)
+
 #calculates the total potential due to the vortices
 def _vortex_potential(vortex):
    theta = np.arctan2(vortex.positions[:,1], vortex.positions[:,0])
    phi = vortex.strengths * theta / (2 * np.pi)
    return np.sum(phi)
 
-def compute_force_pressure(bound, vortex_old, vortex_new, pref=0):
+#doesnt work for flat plate/zero thickness yet
+def compute_force_pressure(bound, vortex_old, vortex_new, wake, pref=0): #vortex_old, vortex_new refer to bound vortices
     """Finds the forces on the body by integrating the pressure"""
-    #is this right? This is just a constant then for all panels 
+    #q is the local velocity at collocation point (tangential component only)
+    q = _compute_tan_velocity(bound, wake=wake)
+    #vref is the kinematic velocity
+    vref = _compute_kin_velocity(bound)
+    #is dPhi right? This is just a constant then for all panels 
     dPhi = _vortex_potential(vortex_new) - _vortex_potential(vortex_old) 
-    p = - dPhi + pref
-    return p
+    p = -(q*q)/2 + (vref*vref)/2 - dPhi + pref
+    f = p * bound.lengths 
+    f = f[:,np.newaxis] * bound.normals
+    force = -np.sum(f, axis=0)
+    return force
+    
+#this is only for a flat plate (thin airfoil)/debugging purposes (Katz & Plotkin pg. 415)
+def compute_force_flat_plate(bound, vortex_old, vortex_new, wake):
+    q = _compute_tan_velocity(bound, wake=wake)
+#    dPhi #still need to implement for unsteady motion
+    p = q * bound.vortices.strengths / bound.lengths 
+    f = p * bound.lengths 
+    f = f[:,np.newaxis] * bound.normals
+    force = -np.sum(f, axis=0)
+    return force
     
 #class ImpulseMethod(Force):
        

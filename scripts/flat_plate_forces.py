@@ -10,7 +10,7 @@ flat_plate = TransformedBody(flat_plate, displacement=(-0.25, 0))
 flat_plate = TransformedBody(flat_plate, angle)
 bound = BoundVortices(flat_plate)
 
-num_steps = 50
+num_steps = 400
 Uinfty = (1,0)
 dt = 0.01
 Vortices.core_radius = dt

@@ -2,7 +2,7 @@ from pysces import *
 import matplotlib.pyplot as plt
 import numpy as np
 
-body = naca_airfoil("2412", 6)
+body = naca_airfoil("0006", 6)
 body = TransformedBody(body, angle=10)
 
 #body = naca_airfoil("0012", 6)
@@ -18,7 +18,6 @@ vort = body_panels.vortices.positions
 coll = body_panels.collocation_pts
 norm = body_panels.normals
 tan = body_panels.tangents
-print body_panels.lengths
 foil = body.get_points(body_frame=True)
 plt.plot(foil[:,0], foil[:,1], 'k-+')
 plt.plot(vort[:,0], vort[:,1], 'ro', label="vortices")
