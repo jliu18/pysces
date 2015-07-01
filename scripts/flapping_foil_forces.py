@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 #define body
+#airfoil = flat_plate(10)
 airfoil = naca_airfoil("0012", 50)      # NACA 0012 airfoil with 20 points per side
 airfoil = TransformedBody(airfoil, displacement=(-0.25, 0))
 #define motion of body
@@ -12,7 +13,7 @@ airfoil = Heaving(airfoil, (0,0.2), freq, phase=0)
 bound = BoundVortices(airfoil)
 
 #set up simulation and flow rate
-num_steps = 327 #327 for 1 full period of lift
+num_steps = 327 
 Uinfty = (1,0)
 dt = 0.01
 Vortices.core_radius = dt

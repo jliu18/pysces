@@ -4,8 +4,8 @@ import numpy as np
 #lift should equal 2*pi*alpha where alpha is angle of attack in radians
 #=pi^2/90 * angle of attack (deg)
 
-angle = 10
-flat_plate = flat_plate(20)
+angle = 5
+flat_plate = flat_plate(10)
 flat_plate = TransformedBody(flat_plate, displacement=(-0.25, 0))
 flat_plate = TransformedBody(flat_plate, angle)
 bound = BoundVortices(flat_plate)
@@ -15,7 +15,7 @@ Uinfty = (1,0)
 dt = 0.01
 Vortices.core_radius = dt
 
-flow = RungeKutta2(dt, Uinfty, bound, need_force=True)
+flow = ExplicitEuler(dt, Uinfty, bound, need_force=True)
 
 for i in range(1,num_steps):
     flow.advance()

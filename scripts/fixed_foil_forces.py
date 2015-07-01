@@ -12,7 +12,7 @@ Uinfty = (1,0)
 dt = 0.01
 Vortices.core_radius = dt
 
-flow = RungeKutta2(dt, Uinfty, bound, need_force=True)
+flow = ExplicitEuler(dt, Uinfty, bound, need_force=True)
 
 for i in range(1,num_steps):
     flow.advance()

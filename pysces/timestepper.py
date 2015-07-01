@@ -44,20 +44,22 @@ class Timestepper(object):
             dt = self._dt
         x = self._wake.positions
         #calculate force on body
-#        if self._need_force:
+        if self._need_force:
 #            vel = self._wake_velocity() #dont compute twice?
 #            f = force.compute_force_wake(self.wake, vel)
 #            self._force = np.vstack((self._force, f)) 
-        v1 = copy.deepcopy(self.bound.vortices) #need deepcopy?
-#        #move the wake
+        
+#            v1 = copy.copy(self._bound.vortices) 
+            b1 = copy.deepcopy(self._bound) #need deepcopy?
+            w1 = copy.deepcopy(self._wake)
         self._wake_advance(x, dt)    # defer to subclass
-        v2 = self.bound.vortices
-        #f = force.compute_force_bound(v1, v2)
-        f = force.compute_force_pressure(self._bound, v1, v2, self._wake)
-        #f = force.compute_force_flat_plate(self._bound)
-        self._force = np.vstack((self._force, f)) 
-        #move the body   
-        #self._body_advance(force, dt)   #also defer to subclass? Can we use things like Runge Kutta on this?
+        if self._need_force:
+#            v2 = self._bound.vortices
+#            f = force.compute_force_bound(self._bound, v1, v2) #redundant arguments
+            f = force.compute_force_pressure(b1, w1, self._bound, self._wake)
+#            f = force.compute_force_flat_plate(b1, self._bound, self._wake)
+            self._force = np.vstack((self._force, f)) 
+            self._body_advance(f, dt)    
         
     @property
     def time(self):
@@ -157,8 +159,12 @@ class Timestepper(object):
         if self._has_body:
             self._bound.time = self._time
             self._bound.update_strengths_unsteady(dt, self._Uinfty, self._wake)
-            self._wake.append(*self._bound.get_newly_shed())
-
+            self._wake.append(*self._bound.get_newly_shed()) #this is where pitching/heaving is updated, change?
+            
+    def _body_advance(self, force, dt):
+        #if self._has_body:
+    
+        pass
 
 class ExplicitEuler(Timestepper):
     """Timestepper using the explicit Euler method"""
@@ -166,11 +172,6 @@ class ExplicitEuler(Timestepper):
     def _wake_advance(self, x, dt):
         vel = self._wake_velocity()
         self._update_flow(x + vel * dt, dt)
-        
-#    def _body_advance(self, force, dt):
-#        pass
-        #add stuff here
-        #see _update_flow(), also has body motion update stuff
 
 class RungeKutta2(Timestepper):
     """Timestepper using 2nd-order Runge Kutta"""

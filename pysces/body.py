@@ -1,7 +1,7 @@
 import numpy as np
 from .motion import RigidMotion
 
-__all__ = ['Body', 'TransformedBody', 'Pitching', 'Heaving',
+__all__ = ['Body', 'TransformedBody', 'Pitching', 'Heaving', 'Xmotion',
            'cylinder', 'flat_plate', 'naca_airfoil']
 
 class Body(object):
@@ -104,6 +104,7 @@ class TransformedBody(object):
 
     def get_motion(self):
         self._update()
+        #self._xmotion_update(force) #need better way of doing this
         return self._motion.compose(self._parent.get_motion())
 
     def set_motion(self, value):
@@ -161,17 +162,31 @@ class Heaving(TransformedBody):
         self.set_motion(RigidMotion(0, x, 0, xdot))
         
 #class Xmotion(TransformedBody):
-#    """Translates an existing body in the x-direction only based on the forces acting on it
+#    """Translation in the x-direction for an existing body
 #    """
-#    def __init__(self, body, mass, velocity, force, dt):
-#        super(Xmotion, self).__init__(body) #what does this line do?
-#        self._mass = mass #mass of fish and added mass
+#    def __init__(self, body, mass, velocity, dt):
+#        super(Xmotion, self).__init__(body) #?
+#        self._mass = mass #mass of body and added mass (pressure impulse)
 #        self._velocity = np.array(velocity) #initial velocity
-#        self._force = np.array(force)
 #        self._dt = dt
 #        
-#    def _update(self):
-#        xdot = np.array([self._force[0] / self._mass * self.dt + self._velocity, 0])
-#        #FIX, need to transform?
-#        x = np.array([0.5 * self._force[0] / self._mass * self.dt * self.dt + self._velocity * self.dt, 0]) 
-#        self.set_motion(RigidMotion(0, x, 0, xdot))
+#    def _xmotion_update(self, force):
+#        if force != None:
+#            force = np.array(force, dtype=np.float64)
+#            xdot = np.array([force[0] / self._mass * self._dt + self._velocity, 0])
+#            #FIX, need to transform?
+#            x = np.array([0.5 * force[0] / self._mass * self._dt * self._dt + self._velocity * self._dt, 0]) 
+#            self.set_motion(RigidMotion(0, x, 0, xdot))
+        
+class Xmotion(TransformedBody):
+    """Translation in the x-direction for an existing body
+    """
+    def __init__(self, body, displacement, velocity):
+        super(Xmotion, self).__init__(body) 
+        self._displacement = np.array(displacement)
+        self._velocity = np.array(velocity) #initial velocity
+        
+    def _update(self):
+        x = self._displacement * self.time
+        xdot = self._velocity
+        self.set_motion(RigidMotion(0, x, 0, xdot))

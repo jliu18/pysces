@@ -113,3 +113,22 @@ class Vortices(object):
         for xvort, gam in zip(positions, self._strengths):
             vel += self.induced_velocity_single(x, xvort, gam)
         return vel
+    
+    #fix for if r = 0?   
+    def induced_potential_single(self, x, xvort, gam):
+        r = np.array(x, ndmin=2) - np.array(xvort)
+        theta = np.arctan2(r[:,1], r[:,0])
+        phi = gam / (2 * np.pi) * theta
+        return phi
+    
+    def induced_potential(self, x, motion=None):
+        """Compute the induced potential at the given point(s)"""
+        if motion is None:
+            positions = self._positions
+        else:
+            positions = motion.map_position(self._positions)
+        x = np.array(x)
+        phi = np.zeros(len(x), dtype=np.float64)
+        for xvort, gam in zip(positions, self._strengths):
+            phi += self.induced_potential_single(x, xvort, gam)
+        return phi

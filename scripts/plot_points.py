@@ -2,14 +2,14 @@ from pysces import *
 import matplotlib.pyplot as plt
 import numpy as np
 
-body = naca_airfoil("0006", 6)
-body = TransformedBody(body, angle=10)
+#body = naca_airfoil("0006", 6)
+#body = TransformedBody(body, angle=10)
 
 #body = naca_airfoil("0012", 6)
 
 #body = cylinder(0.1, 13)
 
-#body = flat_plate(2)
+body = flat_plate(10)
 #body = TransformedBody(body, angle=10)
 
 body_panels = BoundVortices(body)
