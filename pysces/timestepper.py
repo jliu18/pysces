@@ -18,6 +18,7 @@ class Timestepper(object):
         self._need_force = need_force
         if need_force:
             self._force = np.array([0,0], dtype=np.float64)
+            self._pressure = None
         self.initialize(wake)
 
     def initialize(self, wake=None):
@@ -50,16 +51,16 @@ class Timestepper(object):
 #            self._force = np.vstack((self._force, f)) 
         
 #            v1 = copy.copy(self._bound.vortices) 
-            b1 = copy.deepcopy(self._bound) #need deepcopy?
+            b1 = copy.deepcopy(self._bound) 
             w1 = copy.deepcopy(self._wake)
         self._wake_advance(x, dt)    # defer to subclass
         if self._need_force:
 #            v2 = self._bound.vortices
 #            f = force.compute_force_bound(self._bound, v1, v2) #redundant arguments
-            f = force.compute_force_pressure(b1, w1, self._bound, self._wake)
+            f, self._pressure = force.compute_force_pressure(b1, w1, self._bound, self._wake)
 #            f = force.compute_force_flat_plate(b1, self._bound, self._wake)
             self._force = np.vstack((self._force, f)) 
-            self._body_advance(f, dt)    
+#            self._body_advance(f, dt)    
         
     @property
     def time(self):
@@ -161,10 +162,6 @@ class Timestepper(object):
             self._bound.update_strengths_unsteady(dt, self._Uinfty, self._wake)
             self._wake.append(*self._bound.get_newly_shed()) #this is where pitching/heaving is updated, change?
             
-    def _body_advance(self, force, dt):
-        #if self._has_body:
-    
-        pass
 
 class ExplicitEuler(Timestepper):
     """Timestepper using the explicit Euler method"""

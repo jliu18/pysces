@@ -27,14 +27,13 @@ import numpy as np
 #
 #class PressureMethod(Force):
 
-#fix this/check, also consider Uinfty other than (1,0)
 #computes the tangential velocity at each collocation point
-def _compute_tan_velocity(bound, Uinfty=(1,0), wake=None):
-    # get collocation points and normals
+def _compute_tan_velocity(bound, Uinfty, wake):
+    # get collocation points and tangents
     motion = bound._body.get_motion()
     if motion:
         xcoll_inertial = motion.map_position(bound.collocation_pts)
-        tangents_inertial = motion.map_vector(bound.tangents)
+        tangents_inertial = motion.map_vector(bound.tangents) 
     else:
         xcoll_inertial = bound.collocation_pts
         tangents_inertial = bound.tangents
@@ -42,21 +41,23 @@ def _compute_tan_velocity(bound, Uinfty=(1,0), wake=None):
     if wake:
         vel = wake.induced_velocity(xcoll_inertial)
     else:
-        vel = np.zeros((bound.num_panels, 2))
+        vel = np.zeros((bound.num_panels, 2))   
+    vel += bound.vortices.induced_velocity(bound.collocation_pts)
     # assume body is not deforming: only motion is translation/rotation
     if motion:
         vel -= motion.map_velocity(bound.collocation_pts)
     vel += np.array(Uinfty)
-    # compute v . t
+    # compute v . t    
     return np.sum(vel * tangents_inertial, axis=1)
 
 #gets the magnitude of kinematic velocity at each collocation point (only for rigid bodies)
-def _compute_kin_velocity(bound):
+def _compute_kin_velocity(bound, Uinfty):
     motion = bound._body.get_motion()
     if motion:
         v = motion.map_velocity(bound.collocation_pts)
     else:
         v = np.array([0,0])
+#    v += np.array(Uinfty) #this just shifts everything
     return np.linalg.norm(v, axis=1)
 
 #calculates the total potential due to the vortices
@@ -67,36 +68,30 @@ def _vortex_potential(bound, wake):
         pos_inertial = motion.map_position(bound.collocation_pts)
     else: 
         pos_inertial = bound.collocation_pts
-    phi = bound.vortices.induced_potential(pos_inertial) #must map vortices into inertial frame too then?
+    phi = bound.vortices.induced_potential(bound.collocation_pts)
     phi += wake.induced_potential(pos_inertial) 
     #need to include incoming flow potential?
     return phi
-
-#def _correct_last_panel_length(points):
-#    m = points[1] - points[0]
-#    m = m[1] / m[0]
-#    b = 6.3e-4 - m
-#    x = - b / m
-#    length = np.sqrt((points[1][0]-x)**2 + points[1][1]**2)
-#    return length
     
 #doesnt work for flat plate/zero thickness 
-def compute_force_pressure(bound_old, wake_old, bound_new, wake_new, pref=0): 
+def compute_force_pressure(bound_old, wake_old, bound_new, wake_new, pref=0, Uinfty=(1,0)): 
     """Finds the forces on the body by integrating the pressure (from unsteady Bernoulli equation)"""
     #q is the local velocity at collocation point (tangential component only)
-    q = _compute_tan_velocity(bound_new, wake=wake_new)
+    motion = bound_new._body.get_motion()    
+    if motion:
+        norm_inertial = motion.map_vector(bound_new.normals)
+    else:
+        norm_inertial = bound_new.normals
+    q = _compute_tan_velocity(bound_new, Uinfty, wake_new)
     #vref is the kinematic velocity
-    vref = _compute_kin_velocity(bound_new)
+    vref = _compute_kin_velocity(bound_new, Uinfty)
     dPhi = _vortex_potential(bound_new, wake_new) - _vortex_potential(bound_old, wake_old) 
     dPhi = np.sum(dPhi)
     p = -(q*q)/2 + (vref*vref)/2 - dPhi + pref
-    p = p * bound_new.lengths 
-#    p[0] = p[0] * _correct_last_panel_length(bound._body.get_points(body_frame=True))
-#    p[bound.num_panels-1] = p[bound.num_panels-1] *  _correct_last_panel_length(bound._body.get_points(body_frame=True))
-    f = p[:,np.newaxis] * bound_new.normals
+    f = p * bound_new.lengths 
+    f = f[:,np.newaxis] * norm_inertial
     force = -np.sum(f, axis=0)
-    return force
-
+    return force, p
 
 def _vortex_potential_thin(strengths):
     phi = np.zeros_like(strengths)

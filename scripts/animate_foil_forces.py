@@ -13,14 +13,14 @@ airfoil = TransformedBody(airfoil, displacement=(-0.25, 0))
 freq = 0.3 * 2*np.pi
 airfoil = Pitching(airfoil, 20, freq, phase=90)
 airfoil = Heaving(airfoil, (0,0.2), freq, phase=0)
-airfoil = Xmotion(airfoil, (0,0), (-2,0)) #code is super slow now
+airfoil = Xmotion(airfoil, (0,0), (0,0), dt) 
 bound = BoundVortices(airfoil)
 
 flow = ExplicitEuler(dt, Uinfty, bound)
 
 fig, ax = plt.subplots()
 ax.axis('equal')
-ax.axis([-5,5,-2,2])
+ax.axis([-10,5,-2,2])
 ax.grid(True)
 q = airfoil.get_points()
 line, = ax.plot(q[:,0], q[:,1], '-k')
@@ -31,7 +31,6 @@ pts = ax.scatter(0, 0, c=0,
 def gen_points():
     flow.initialize()
     num_steps = 200
-    dt = 0.02
     for i in range(num_steps):
         flow.advance()
         yield airfoil.get_points(), flow.wake.positions, flow.wake.strengths
