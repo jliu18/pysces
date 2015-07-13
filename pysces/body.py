@@ -1,7 +1,7 @@
 import numpy as np
 from .motion import RigidMotion
 
-__all__ = ['Body', 'TransformedBody', 'Pitching', 'Heaving', 'Xmotion',
+__all__ = ['Body', 'TransformedBody', 'Pitching', 'Heaving',
            'cylinder', 'flat_plate', 'naca_airfoil']
 
 class Body(object):
@@ -20,6 +20,7 @@ class Body(object):
         """
         self._time = 0
         self._points = points
+        self._mass = 1
 
     @property
     def time(self):
@@ -37,7 +38,7 @@ class Body(object):
         """Return the Body object in the body-fixed frame"""
         return self
 
-    def get_motion(self):
+    def get_pre_motion(self):
         """Return the transformation from the body-fixed to inertial frame"""
         return None
 
@@ -97,14 +98,21 @@ class TransformedBody(object):
         """angles are clockwise, in degrees"""
         self._parent = body
         self._body = body.get_body()
-        self._motion = RigidMotion(-angle * np.pi / 180, displacement)
+        self._motion = RigidMotion(0, (0,0))
+        self._pre_motion = RigidMotion(-angle * np.pi / 180, displacement)
 
     def get_body(self):
         return self._body
+        
+    def get_pre_motion(self): #prescribed motion: pitching, heaving, etc. 
+        self._update()
+        return self._pre_motion.compose(self._parent.get_pre_motion())
+    
+    def set_pre_motion(self, value):
+        self._pre_motion = value
 
     def get_motion(self):
-        self._update()
-        return self._motion.compose(self._parent.get_motion())
+        return self._motion
 
     def set_motion(self, value):
         self._motion = value
@@ -142,7 +150,7 @@ class Pitching(TransformedBody):
         theta = self._frequency * self.time + self._phase
         alpha = self._amplitude * np.sin(theta)
         alphadot = self._amplitude * self._frequency * np.cos(theta)
-        self.set_motion(RigidMotion(-alpha, (0,0), -alphadot, (0,0)))
+        self.set_pre_motion(RigidMotion(-alpha, (0,0), -alphadot, (0,0)))
 
 
 class Heaving(TransformedBody):
@@ -158,26 +166,26 @@ class Heaving(TransformedBody):
         theta = self._frequency * self.time + self._phase
         x = self._displacement * np.sin(theta)
         xdot = self._displacement * self._frequency * np.cos(theta)
-        self.set_motion(RigidMotion(0, x, 0, xdot))
+        self.set_pre_motion(RigidMotion(0, x, 0, xdot))
         
-class Xmotion(TransformedBody):
-    """Translation in the x-direction for an existing body
-    """
-    def __init__(self, body, displacement, velocity, dt):
-        super(Xmotion, self).__init__(body) 
-        self._mass = 1.0 #mass of body and added mass (pressure impulse)
-        self._displacement = np.array(displacement)
-        self._velocity = np.array(velocity) #initial velocity
-        self._dt = dt
-       
-    def _update(self, force):
-        if force != None:
-            force = np.array(force, dtype=np.float64)
-            xdot = np.array([force[0] / self._mass * self._dt + self._velocity, 0])
-            x = np.array([0.5 * force[0] / self._mass * self._dt * self._dt + self._velocity * self._dt, 0])
-            self._velocity = xdot
-            self._displacement = x
-            self.set_motion(RigidMotion(0, x, 0, xdot))
+#class Xmotion(TransformedBody):
+#    """Translation in the x-direction for an existing body
+#    """
+#    def __init__(self, body, displacement, velocity, dt):
+#        super(Xmotion, self).__init__(body) 
+#        self._mass = 1.0 #mass of body and added mass (pressure impulse)
+#        self._displacement = np.array(displacement)
+#        self._velocity = np.array(velocity) #initial velocity
+#        self._dt = dt
+#       
+#    def _update(self, force):
+#        if force != None:
+#            force = np.array(force, dtype=np.float64)
+#            xdot = np.array([force[0] / self._mass * self._dt + self._velocity, 0])
+#            x = np.array([0.5 * force[0] / self._mass * self._dt * self._dt + self._velocity * self._dt + self._displacement, 0])
+#            self._velocity = xdot
+#            self._displacement = x
+#            self.set_motion(RigidMotion(0, x, 0, xdot))
         
 #class Xmotion(TransformedBody):
 #    """Translation in the x-direction for an existing body

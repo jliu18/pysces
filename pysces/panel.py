@@ -2,6 +2,7 @@ from __future__ import division
 
 import numpy as np
 from .vortex import Vortices
+from .motion import RigidMotion
 
 __all__ = ['BoundVortices', 'BoundSourceDoublets']
 
@@ -56,6 +57,28 @@ class BoundVortices(object):
         # need to recompute influence matrix when points change
         self._influence_matrix = None
 
+    def update_motion(self, force, dt): #check frames
+        pre_motion = self._body.get_pre_motion() #prescribed motion
+        #print self._body.get_motion()
+        if force == None: #fix this so it doesn't give warning
+            motion = pre_motion
+        else:
+            old_motion = self._body.get_motion()
+            vel = old_motion.xdot
+            pos = old_motion.x
+ #          m = self._body._mass
+            m = 1
+            f = np.array(force, dtype=np.float64) #
+            xdot = np.array([f[0] / m * dt + vel[0], 0]) 
+            #print xdot
+            x = np.array([0.5 * f[0] / m * dt**2 + vel[0] * dt + pos[0], 0]) #include freestream velocity?
+            #print x
+            f_motion = RigidMotion(0, x, 0, xdot) #motion due to force
+            motion = f_motion.compose(pre_motion)
+            #print motion
+        self._body.set_motion(motion)  
+        #print self._body.get_motion()
+               
     @property
     def influence_matrix(self):
         if self._influence_matrix is None:
@@ -64,8 +87,8 @@ class BoundVortices(object):
             A = np.zeros((n, n))
             for i, vort in enumerate(self._vortices):
                 vel = self._vortices.induced_velocity_single(self._xcoll,
-                                                             vort[0], 1)
-                A[:, i] = np.sum(vel * self._normals, 1)
+                                                             vort[0], 1)                                           
+                A[:,i] = np.sum(vel * self._normals, 1)
             self._influence_matrix = A
         return self._influence_matrix
 
@@ -109,7 +132,6 @@ class BoundVortices(object):
         A = np.vstack([np.hstack([self.influence_matrix,
                                   shed_normal[:,np.newaxis]]),
                        np.ones((1, self._numpanels + 1))])
-
         rhs0 = self.compute_rhs(Uinfty, wake)
         if circ is None:
             if wake is None:

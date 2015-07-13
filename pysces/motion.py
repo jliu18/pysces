@@ -101,7 +101,6 @@ class RigidMotion(object):
         The group action of the element (R, x) is given by
             q -> R . q + x
         """
-        #print self._theta
         if self._theta:
             q_new = np.dot(q, np.transpose(self._R))
         else:

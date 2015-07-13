@@ -22,33 +22,31 @@ import numpy as np
 #        else:
 #            self._force = np.vstack((self._force, force))
 #            
-#    def compute_force(self): #do i need this?
+#    def compute_force(self): 
 #        pass #defer to subclasses
 #
 #class PressureMethod(Force):
 
-#computes the tangential velocity at each collocation point
-def _compute_tan_velocity(bound, Uinfty, wake):
+#computes the velocity at each collocation point (should be tangential only)
+def _compute_velocity(bound, Uinfty, wake):
     # get collocation points and tangents
     motion = bound._body.get_motion()
     if motion:
         xcoll_inertial = motion.map_position(bound.collocation_pts)
-        tangents_inertial = motion.map_vector(bound.tangents) 
     else:
         xcoll_inertial = bound.collocation_pts
-        tangents_inertial = bound.tangents
     # velocity induced by wake
     if wake:
         vel = wake.induced_velocity(xcoll_inertial)
     else:
         vel = np.zeros((bound.num_panels, 2))   
-    vel += bound.vortices.induced_velocity(bound.collocation_pts)
+    vel += bound.induced_velocity(xcoll_inertial) 
     # assume body is not deforming: only motion is translation/rotation
     if motion:
         vel -= motion.map_velocity(bound.collocation_pts)
-    vel += np.array(Uinfty)
-    # compute v . t    
-    return np.sum(vel * tangents_inertial, axis=1)
+    vel += np.array(Uinfty)  
+    return vel
+#    return np.linalg.norm(vel, axis=1)
 
 #gets the magnitude of kinematic velocity at each collocation point (only for rigid bodies)
 def _compute_kin_velocity(bound, Uinfty):
@@ -57,7 +55,7 @@ def _compute_kin_velocity(bound, Uinfty):
         v = motion.map_velocity(bound.collocation_pts)
     else:
         v = np.array([0,0])
-#    v += np.array(Uinfty) #this just shifts everything
+    v += np.array(Uinfty) 
     return np.linalg.norm(v, axis=1)
 
 #calculates the total potential due to the vortices
@@ -68,7 +66,7 @@ def _vortex_potential(bound, wake):
         pos_inertial = motion.map_position(bound.collocation_pts)
     else: 
         pos_inertial = bound.collocation_pts
-    phi = bound.vortices.induced_potential(bound.collocation_pts)
+    phi = bound.vortices.induced_potential(pos_inertial, motion)
     phi += wake.induced_potential(pos_inertial) 
     #need to include incoming flow potential?
     return phi
@@ -82,16 +80,19 @@ def compute_force_pressure(bound_old, wake_old, bound_new, wake_new, pref=0, Uin
         norm_inertial = motion.map_vector(bound_new.normals)
     else:
         norm_inertial = bound_new.normals
-    q = _compute_tan_velocity(bound_new, Uinfty, wake_new)
+    vel = _compute_velocity(bound_new, Uinfty, wake_new)
+    q = np.linalg.norm(vel, axis=1)
     #vref is the kinematic velocity
     vref = _compute_kin_velocity(bound_new, Uinfty)
-    dPhi = _vortex_potential(bound_new, wake_new) - _vortex_potential(bound_old, wake_old) 
-    dPhi = np.sum(dPhi)
-    p = -(q*q)/2 + (vref*vref)/2 - dPhi + pref
+    #dPhi = _vortex_potential(bound_new, wake_new) - _vortex_potential(bound_old, wake_old) 
+    #dPhi = np.sum(dPhi)
+    p = -(q*q)/2 + (vref*vref)/2 
+    #- dPhi + pref
+    Cp = 1 - (q**2)
     f = p * bound_new.lengths 
     f = f[:,np.newaxis] * norm_inertial
     force = -np.sum(f, axis=0)
-    return force, p
+    return force, vel 
 
 def _vortex_potential_thin(strengths):
     phi = np.zeros_like(strengths)
@@ -104,14 +105,15 @@ def _vortex_potential_thin(strengths):
     return phi       
     
 #this is only for a flat plate (zero-thickness airfoil)/debugging purposes (Katz & Plotkin pg. 415)
-def compute_force_flat_plate(bound_old, bound_new, wake):
-    q = _compute_tan_velocity(bound_new, wake=wake)
+def compute_force_flat_plate(bound_old, bound_new, wake, Uinfty=(1,0)):
+    vel = _compute_velocity(bound_new, Uinfty, wake)
+    q = np.linalg.norm(vel, axis=1)
     dPhi = _vortex_potential_thin(bound_new.vortices.strengths) - _vortex_potential_thin(bound_old.vortices.strengths) 
     p = q * bound_new.vortices.strengths / bound_new.lengths + dPhi
     f = p * bound_new.lengths 
     f = f[:,np.newaxis] * bound_new.normals
     force = -np.sum(f, axis=0)
-    return force
+    return force, vel
     
 #class ImpulseMethod(Force):
        

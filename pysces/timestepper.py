@@ -17,8 +17,8 @@ class Timestepper(object):
         self._has_body = (bound is not None)
         self._need_force = need_force
         if need_force:
-            self._force = np.array([0,0], dtype=np.float64)
-            self._pressure = None
+            self._force = np.array([0, 0], dtype=np.float64)
+            self._velocity = None
         self.initialize(wake)
 
     def initialize(self, wake=None):
@@ -44,23 +44,28 @@ class Timestepper(object):
         if not dt:
             dt = self._dt
         x = self._wake.positions
-        #calculate force on body
-        if self._need_force:
-#            vel = self._wake_velocity() #dont compute twice?
-#            f = force.compute_force_wake(self.wake, vel)
-#            self._force = np.vstack((self._force, f)) 
-        
-#            v1 = copy.copy(self._bound.vortices) 
-            b1 = copy.deepcopy(self._bound) 
-            w1 = copy.deepcopy(self._wake)
-        self._wake_advance(x, dt)    # defer to subclass
-        if self._need_force:
-#            v2 = self._bound.vortices
-#            f = force.compute_force_bound(self._bound, v1, v2) #redundant arguments
-            f, self._pressure = force.compute_force_pressure(b1, w1, self._bound, self._wake)
-#            f = force.compute_force_flat_plate(b1, self._bound, self._wake)
+        #calculate force on body, need better way of choosing which method
+        if self._need_force=='wake_impulse': 
+            vel = self._wake_velocity() #dont compute twice?
+            f = force.compute_force_wake(self._wake, vel)
             self._force = np.vstack((self._force, f)) 
-#            self._body_advance(f, dt)    
+            self._wake_advance(x, dt, force=None) 
+        elif self._need_force=='pressure':
+            b1 = copy.deepcopy(self._bound)             
+            w1 = copy.deepcopy(self._wake)
+            self._wake_advance(x, dt, force=None)
+            f, self._velocity = force.compute_force_pressure(bound_old=None, wake_old=None, bound_new=self._bound, wake_new=self._wake) #
+            self._force = np.vstack((self._force, f)) 
+        elif self._need_force=='flat_plate':
+            b1 = copy.deepcopy(self._bound) 
+            self._wake_advance(x, dt, force=None)    
+            f, self._velocity = force.compute_force_flat_plate(b1, self._bound, self._wake)
+            self._force = np.vstack((self._force, f)) 
+        #elif self._need_force=='bound_impulse':
+            #self._force = np.vstack((self._force, f))    
+            #f = force.compute_force_bound(self._bound, v1, v2) #redundant arguments
+        else:
+            self._wake_advance(x, dt, force=None)
         
     @property
     def time(self):
@@ -138,7 +143,7 @@ class Timestepper(object):
                 vel += shed.induced_velocity(pos)
         return vel
 
-    def _update_flow(self, wake_pos, dt):
+    def _update_flow(self, wake_pos, dt, force):
         """Update the flow with new positions of wake vortices
 
         Parameters
@@ -159,16 +164,18 @@ class Timestepper(object):
         self._time += dt
         if self._has_body:
             self._bound.time = self._time
+            self._bound.update_motion(force, dt) #
             self._bound.update_strengths_unsteady(dt, self._Uinfty, self._wake)
-            self._wake.append(*self._bound.get_newly_shed()) #this is where pitching/heaving is updated, change?
+            self._wake.append(*self._bound.get_newly_shed()) 
+
             
 
 class ExplicitEuler(Timestepper):
     """Timestepper using the explicit Euler method"""
 
-    def _wake_advance(self, x, dt):
+    def _wake_advance(self, x, dt, force):
         vel = self._wake_velocity()
-        self._update_flow(x + vel * dt, dt)
+        self._update_flow(x + vel * dt, dt, force)
 
 class RungeKutta2(Timestepper):
     """Timestepper using 2nd-order Runge Kutta"""

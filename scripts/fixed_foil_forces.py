@@ -6,12 +6,12 @@ airfoil = TransformedBody(airfoil, displacement=(-0.25, 0))
 airfoil = TransformedBody(airfoil, angle=0) # rotate by 5 degrees about 1/4 chord
 bound = BoundVortices(airfoil)
 
-num_steps = 200
+num_steps = 400
 Uinfty = (1,0)
 dt = 0.01
 Vortices.core_radius = dt
 
-flow = ExplicitEuler(dt, Uinfty, bound, need_force=True)
+flow = ExplicitEuler(dt, Uinfty, bound, need_force='pressure')
 
 for i in range(1,num_steps):
     flow.advance()
