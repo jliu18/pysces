@@ -1,8 +1,8 @@
 from pysces import *
 import matplotlib.pyplot as plt
 
-angle = 0
-airfoil = naca_airfoil("0006", 40)   # NACA 2412 airfoil with 20 points per side
+angle = 9
+airfoil = naca_airfoil("0012", 32)   # NACA 2412 airfoil with 20 points per side
 airfoil = TransformedBody(airfoil, displacement=(-0.25, 0))
 airfoil = TransformedBody(airfoil, angle) # rotate by 5 degrees about 1/4 chord
 
@@ -16,7 +16,7 @@ Uinfty = (1,0)
 dt = 0.01
 Vortices.core_radius = dt
 
-flow = ExplicitEuler(dt, Uinfty, bound, need_force=True)
+flow = ExplicitEuler(dt, Uinfty, bound, need_force='airfoil')
 
 for i in range(1,num_steps):
     flow.advance()

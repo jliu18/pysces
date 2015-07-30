@@ -1,33 +1,34 @@
 from pysces import *
 import matplotlib.pyplot as plt
 
-airfoil = naca_airfoil("0012", 20, zero_thick_te=True)   # NACA 2412 airfoil with 20 points per side
+angle = 5
+airfoil = naca_airfoil("0006", 20, zero_thick_te=True)  
 airfoil = TransformedBody(airfoil, displacement=(-0.25, 0))
-airfoil = TransformedBody(airfoil, angle=0) # rotate by 5 degrees about 1/4 chord
+airfoil = TransformedBody(airfoil, angle)
 bound = BoundVortices(airfoil)
 
-num_steps = 400
+num_steps = 1500
 Uinfty = (1,0)
 dt = 0.01
 Vortices.core_radius = dt
 
-flow = ExplicitEuler(dt, Uinfty, bound, need_force='pressure')
+flow = ExplicitEuler(dt, Uinfty, bound, need_force='wake_impulse')
 
 for i in range(1,num_steps):
     flow.advance()
 
-#print flow.force
-
 #plot force
 f = flow.force
-steps = np.arange(0, num_steps*dt, dt);
+steps = np.arange(0, num_steps*dt, dt)
+expected_Cl = (np.pi * np.pi / 90) * angle
+expected = np.array([expected_Cl, expected_Cl])
+steps2 = np.array([0, num_steps*dt])
 fig = plt.figure()
 ax1 = fig.add_subplot(111)
-
-#print 2*f[:,1]
-
 ax1.scatter(steps, 2*f[:,0], c='b', edgecolors='none', label='Cd')
 ax1.scatter(steps, 2*f[:,1], c='r', edgecolors='none', label='Cl')
-plt.legend(loc='upper left');
+ax1.plot(steps2, expected, c='g', label='expected Cl')
+plt.legend(loc='lower right');
+plt.xlabel('time')
 plt.grid(True)
 plt.show()

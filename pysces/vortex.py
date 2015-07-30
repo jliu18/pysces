@@ -67,7 +67,7 @@ class Vortices(object):
             self._circulation += np.sum(strength)
 
     def induced_velocity_single(self, x, xvort, gam):
-        r"""Compute velocity induced at points x by a single vortex
+        """Compute velocity induced at points x by a single vortex
 
         Parameters
         ----------
@@ -113,22 +113,96 @@ class Vortices(object):
         for xvort, gam in zip(positions, self._strengths):
             vel += self.induced_velocity_single(x, xvort, gam)
         return vel
+        
+        
+#    #still in progress
+#    def induced_potential_single(self, x, xvort, gam, alpha=None):
+#        """Compute the induced potential at point(s) x due to a single vortex
+#        
+#        Parameters
+#        ----------
+#        x : 1d array
+#            Locations at which to compute induced potential.  Expressed as
+#            column vectors (i.e., shape should be (n,2))
+#        xvort : 1d array
+#            Location of vortex (shape should be (2,))
+#        gam : float
+#            Strength of vortex
+#        alpha: location of branch cut for each vortex; the potential is 
+#            multi-valued, so we make theta (the angle between the vortex and 
+#            the x) between [-pi + alpha, pi + alpha]
+#            For a convex body, alpha can be defined as the angle of vortex 
+#            relative to the horizontal. For a wake vortex, the branch cut 
+#            points radially away from the body
+#            Unclear for concave body...
+#            Need to be careful not to cross the branch, so this might break
+#            down for say the multiple body case. 
+#
+#        """
+#        r = np.array(x, ndmin=2) - np.array(xvort)
+#        theta = np.arctan2(r[:,1], r[:,0]) 
+#        if alpha:
+#            theta += alpha
+#        phi = self._strengths / (2*np.pi) * theta
+#        return phi
+#        
+#
+#    def induced_potential(self, x=None, motion=None):
+#        """Compute the induced potential at the given point(s)"""
+#        if motion is None:
+#            positions = self._positions
+#        else:
+#            positions = motion.map_position(self._positions)
+#        if x is None:
+#            x = self._positions
+#        else:
+#            x = np.array(x)
+#        if x.shape==(2,):
+#            length = 1
+#        else:
+#            length = x.shape[0]
+#        phi = np.zeros(length)
+#        for xvort, gam in zip(positions, self._strengths):
+#            phi += self.induced_potential_single(x, xvort, gam) #need way of putting alpha in
+#        return phi
     
-    #fix for if r = 0?   
-    def induced_potential_single(self, x, xvort, gam):
-        r = np.array(x, ndmin=2) - np.array(xvort)
-        theta = np.arctan2(r[:,1], r[:,0])
-        phi = gam / (2 * np.pi) * theta
-        return phi
-    
-    def induced_potential(self, x, motion=None):
-        """Compute the induced potential at the given point(s)"""
-        if motion is None:
+    #still in progress, seems to work, see cylinder.py
+#     #alternative where angle alpha is defined for x
+    def induced_potential(self, x, alpha=None, motion=None):
+        """Compute the induced potential at point(s) x due to the vortices
+        
+        Note: this is different from the order that the induced velocity 
+              functions compute things
+        
+        Parameters
+        ----------
+        x : 1d array
+            Locations at which to compute induced potential.  Expressed as
+            column vectors (i.e., shape should be (n,2))
+        alpha: location of branch for each x; the potential is multi-valued, 
+            so we make theta (the angle between the vortex and the x) between
+            [-pi + alpha, pi + alpha]
+            For a convex body, alpha can be defined as the angle of x 
+            relative to the horizontal. May not work adding wake...
+            Unclear for concave body... 
+            Need to be careful not to cross the branch. 
+
+        """
+        if motion is None: 
             positions = self._positions
         else:
             positions = motion.map_position(self._positions)
-        x = np.array(x)
-        phi = np.zeros(len(x), dtype=np.float64)
-        for xvort, gam in zip(positions, self._strengths):
-            phi += self.induced_potential_single(x, xvort, gam)
+        if x.shape==(2,):
+            length = 1
+        else:
+            length = x.shape[0]
+        phi = np.zeros(length)
+        for i in range(length):
+            r = x[i] - np.array(positions)
+            theta = np.arctan2(r[:,1], r[:,0]) 
+            if alpha is not None:
+                theta[ theta<(alpha[i]-np.pi) ] += 2*np.pi
+            phi_single = self._strengths / (2*np.pi) * theta
+            phi_single = np.sum(phi_single)
+            phi[i] = phi_single
         return phi

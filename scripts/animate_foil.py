@@ -14,8 +14,8 @@ bound = BoundVortices(airfoil)
 Uinfty = (1,0)
 dt = 0.05
 Vortices.core_radius = dt
-# flow = ExplicitEuler(dt, Uinfty, bound)
-flow = RungeKutta2(dt, Uinfty, bound)
+flow = ExplicitEuler(dt, Uinfty, bound, need_force=None)
+#flow = RungeKutta2(dt, Uinfty, bound)
 
 fig, ax = plt.subplots()
 ax.axis('equal')

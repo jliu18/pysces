@@ -3,24 +3,23 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
-dt = 0.02
-Uinfty = (1,0)
+dt = 0.01
+Uinfty = (0,0)
 Vortices.core_radius = dt
 
-airfoil = naca_airfoil("0006", 20) # NACA 0012 airfoil with 20 points per side
-# airfoil = flat_plate(20)
-airfoil = TransformedBody(airfoil, displacement=(-0.25, 0))
-freq = 0.3 * 2*np.pi
-airfoil = Pitching(airfoil, 20, freq, phase=90)
+airfoil = naca_airfoil("0006", 20, zero_thick_te=True) 
+airfoil = TransformedBody(airfoil, displacement=(-0.25, 0)) #why no wake for case with no heaving/pitching, bug, also can only do 0 displacement right now
+freq = 2*np.pi
+airfoil = Pitching(airfoil, 20, freq, phase=90) 
 airfoil = Heaving(airfoil, (0,0.2), freq, phase=0)
-#airfoil = Xmotion(airfoil, (0,0), (0,0), dt) 
 bound = BoundVortices(airfoil)
 
-flow = ExplicitEuler(dt, Uinfty, bound, need_force=True)
+flow = ExplicitEuler(dt, Uinfty, bound, need_force='wake_impulse')
+#flow = ExplicitEuler(dt, Uinfty, bound, need_force=False)
 
 fig, ax = plt.subplots()
 ax.axis('equal')
-ax.axis([-10,10,-2,2])
+ax.axis([-4, 4,-4,4])
 ax.grid(True)
 q = airfoil.get_points()
 line, = ax.plot(q[:,0], q[:,1], '-k')

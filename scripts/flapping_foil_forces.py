@@ -4,7 +4,7 @@ import numpy as np
 
 #define body
 #airfoil = flat_plate(10)
-airfoil = naca_airfoil("0012", 50)      # NACA 0012 airfoil with 20 points per side
+airfoil = naca_airfoil("0006", 20)     
 airfoil = TransformedBody(airfoil, displacement=(-0.25, 0))
 #define motion of body
 freq = 0.3 * 2 * np.pi
@@ -18,13 +18,11 @@ Uinfty = (1,0)
 dt = 0.01
 Vortices.core_radius = dt
 
-flow = ExplicitEuler(dt, Uinfty, bound, need_force=True)
+flow = ExplicitEuler(dt, Uinfty, bound, need_force='wake_impulse')
 
 #advance simulation
 for i in range(1,num_steps):
     flow.advance()
-
-#print flow.force
 
 #plot
 f = flow.force
@@ -34,6 +32,7 @@ fig = plt.figure()
 ax1 = fig.add_subplot(111)
 ax1.scatter(steps, 2*f[:,0], c='b', edgecolors='none', label='Cd')
 ax1.scatter(steps, 2*f[:,1], c='r', edgecolors='none', label='Cl')
+plt.xlabel('time')
 plt.legend(loc='upper left');
 plt.grid(True)
 plt.show()

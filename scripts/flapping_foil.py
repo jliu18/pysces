@@ -2,7 +2,7 @@ from pysces import *
 import matplotlib.pyplot as plt
 import numpy as np
 
-airfoil = naca_airfoil("0012", 50)      # NACA 0012 airfoil with 20 points per side
+airfoil = naca_airfoil("0006", 20)      # NACA 0012 airfoil with 20 points per side
 airfoil = TransformedBody(airfoil, displacement=(-0.25, 0))
 freq = 0.3 * 2 * np.pi
 airfoil = Pitching(airfoil, 10, freq, phase=90)
@@ -14,7 +14,7 @@ Uinfty = (1,0)
 dt = 0.01
 Vortices.core_radius = dt
 
-flow = ExplicitEuler(dt, Uinfty, bound)
+flow = ExplicitEuler(dt, Uinfty, bound, need_force=False)
 
 for i in range(1,num_steps):
     flow.advance()
