@@ -1,8 +1,7 @@
 import numpy as np
 from .motion import RigidMotion
 
-__all__ = ['Body', 'TransformedBody', 'Pitching', 'Heaving',
-           'cylinder', 'flat_plate', 'naca_airfoil']
+__all__ = ['Body', 'cylinder', 'flat_plate', 'naca_airfoil']
 
 class Body(object):
     """Base class for representing bodies
@@ -36,13 +35,39 @@ class Body(object):
     def get_body(self):
         """Return the Body object in the body-fixed frame"""
         return self
-
-    def get_pre_motion(self): #get the prescribed motion
-        return None
+                   
+    def area(self):
+        """Returns the area of the body"""
+        #see http://paulbourke.net/geometry/polygonmesh/ 
+        #"Calculating the area and centroid of a polygon"
+        #check for other references?
+        points = self._points
+        area = 0
+        for i in range(-1, len(points)-1):
+            p1 = points[i]
+            p2 = points[i+1]
+            area += p1[0]*p2[1] - p2[0]*p1[1] 
+        area = np.absolute(area/2)
+        return area
         
-    def get_motion(self):
-        """Return the transformation from the body-fixed to inertial frame"""
-        return None
+        
+    def centroid(self):
+        """Returns the centroid of the body in the body-fixed frame
+            (assuming uniform density)
+        """
+        points = self._points
+        cx = 0
+        cy = 0
+        for i in range(-1, len(points)-1):
+            p1 = points[i]
+            p2 = points[i+1]
+            cx += (p1[0] + p2[0]) * (p1[0]*p2[1] - p2[0]*p1[1])
+            cy += (p1[1] + p2[1]) * (p1[0]*p2[1] - p2[0]*p1[1])    
+        A = self.area()
+        cx = 1/(6*A) * cx
+        cy = 1/(6*A) * cy
+        c = np.array((cx, cy))
+        return c
 
 def cylinder(radius, num_points):
     """Return a circular Body with the given radius and number of points"""
@@ -92,79 +117,17 @@ def naca_airfoil(code, num_points, zero_thick_te=False, uniform=False):
                    y_camber - y_thick])
     return Body(np.array([x, y]).T)
 
-class TransformedBody(object):
-    """Base class for rigid (Euclidean) transformations of existing bodies
-    """
-    def __init__(self, body, angle=0, displacement=(0,0)):
-        """angles are clockwise, in degrees"""
-        self._parent = body
-        self._body = body.get_body()
-        #self._pre_motion = RigidMotion(0, (0,0)) #this causes a bug, see plot_velocity.py
-        self._pre_motion = RigidMotion(-angle * np.pi / 180, displacement) #don't set both?
-        self._motion = RigidMotion(-angle * np.pi / 180, displacement)
 
-    def get_body(self):
-        return self._body
-        
-    def get_pre_motion(self): #prescribed motion: pitching, heaving, etc. 
-        self._update()
-        return self._pre_motion.compose(self._parent.get_pre_motion())
+
     
-    def set_pre_motion(self, value):
-        self._pre_motion = value
 
-    def get_motion(self):
-        return self._motion
+def constrain_x():
+    pass
 
-    def set_motion(self, value):
-        self._motion = value
+def constrain_y():
+    pass
 
-    @property
-    def time(self):
-        return self._body.time
-
-    @time.setter
-    def time(self, value):
-        self._body.time = value
-
-    def _update(self):
-        # update body motion: subclasses override this
-        pass
-
-    def get_points(self, body_frame=False):
-        q = self._body.get_points()
-        if body_frame:
-            return q
-        return self.get_motion().map_position(q)
-
-class Pitching(TransformedBody):
-    """Sinusoidal pitching for an existing body
-    """
-    def __init__(self, body, amplitude, frequency, phase=0.):
-        """amplitude and phase given in degrees"""
-        super(Pitching, self).__init__(body)
-        self._amplitude = amplitude * np.pi / 180
-        self._frequency = frequency
-        self._phase = phase * np.pi / 180
-
-    def _update(self):
-        theta = self._frequency * self.time + self._phase
-        alpha = self._amplitude * np.sin(theta)
-        alphadot = self._amplitude * self._frequency * np.cos(theta)
-        self.set_pre_motion(RigidMotion(-alpha, (0,0), -alphadot, (0,0)))
+def constrain_theta():
+    pass
 
 
-class Heaving(TransformedBody):
-    """Sinusoidal heaving for an existing body
-    """
-    def __init__(self, body, displacement, frequency, phase=0.):
-        super(Heaving, self).__init__(body)
-        self._displacement = np.array(displacement)
-        self._frequency = frequency
-        self._phase = phase * np.pi / 180
-
-    def _update(self):
-        theta = self._frequency * self.time + self._phase
-        x = self._displacement * np.sin(theta)
-        xdot = self._displacement * self._frequency * np.cos(theta)
-        self.set_pre_motion(RigidMotion(0, x, 0, xdot))
