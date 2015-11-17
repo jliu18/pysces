@@ -1,5 +1,6 @@
 import numpy as np
 from .motion import RigidMotion
+#import constraint?
 
 __all__ = ['Body', 'cylinder', 'flat_plate', 'naca_airfoil']
 
@@ -19,6 +20,10 @@ class Body(object):
         """
         self._time = 0
         self._points = points
+        self._xconstraint = None
+        self._yconstraint = None
+        self._thetaconstraint = None 
+        self._motion = None
 
     @property
     def time(self):
@@ -35,7 +40,43 @@ class Body(object):
     def get_body(self):
         """Return the Body object in the body-fixed frame"""
         return self
-                   
+        
+    def get_motion(self):
+        return self._motion
+        
+    def update(self):
+        if self._motion:
+            #check constraints
+            self._xconstraint.time(self._time) #set constraint time to match body time, need better way?
+            self._yconstraint.time(self._time)
+            self._thetaconstraint.time(self._time)
+            
+            if self._xconstraint:
+                x = np.array(self._xconstraint.check_constraint())
+                x = x[0]
+                xdot = x[1]
+            else:
+                x = self._motion.x[0] 
+                xdot = self._motion.xdot[0]
+        
+            if self._yconstraint:
+                y = np.array(self._yconstraint.check_constraint())
+                y = y[0]
+                ydot = y[1]
+            else:
+                y = self._motion.x[1]
+                ydot = self._motion.xdot[1]
+                
+            if self._thetaconstraint:
+                theta = np.array(self._thetaconstraint.check_constraint())
+                theta = theta[0]
+                thetadot = theta[1]
+            else:
+                theta = self._motion.theta
+                thetadot = self._motion.thetadot
+                
+            self._motion = RigidMotion(theta, (x,y), thetadot, (xdot,ydot))
+            
     def area(self):
         """Returns the area of the body"""
         #see http://paulbourke.net/geometry/polygonmesh/ 
@@ -66,9 +107,33 @@ class Body(object):
         A = self.area()
         cx = 1/(6*A) * cx
         cy = 1/(6*A) * cy
-        c = np.array((cx, cy))
+        c = np.array([cx, cy])
         return c
+     
+    @property 
+    def xconstraint(self):
+        return self._xconstraint
+        
+    @xconstraint.setter
+    def xconstraint(self, value):
+        self._xconstraint = value
+    
+    @property
+    def yconstraint(self):
+        return self._yconstraint
+    
+    @yconstraint.setter
+    def yconstraint(self, value):
+        self._yconstraint = value
+    
+    @property
+    def thetaconstraint(self):
+        return self._thetaconstraint
 
+    @thetaconstraint.setter
+    def thetaconstraint(self, value):
+        self._thetaconstraint = value
+    
 def cylinder(radius, num_points):
     """Return a circular Body with the given radius and number of points"""
     th = np.linspace(0, 2 * np.pi, num_points)
@@ -116,18 +181,4 @@ def naca_airfoil(code, num_points, zero_thick_te=False, uniform=False):
     y = np.hstack([y_camber[-1:0:-1] + y_thick[-1:0:-1],
                    y_camber - y_thick])
     return Body(np.array([x, y]).T)
-
-
-
-    
-
-def constrain_x():
-    pass
-
-def constrain_y():
-    pass
-
-def constrain_theta():
-    pass
-
 
